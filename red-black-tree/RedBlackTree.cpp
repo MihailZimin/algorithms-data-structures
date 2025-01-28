@@ -47,8 +47,8 @@ void leftRotate(RBTree<T>& t, Node<T>* x){
 }
 
 template <typename T>
-void rightRotate(RBTree<T>& t, Node<T>* x){
-    Node<T>* y = x->parent;
+void rightRotate(RBTree<T>& t, Node<T>* y){
+    Node<T>* x = y->left;
     y->left = x->right;
 
     if (x->right != t.NIL)
@@ -82,7 +82,7 @@ void RBInsertFixUp(RBTree<T>& t, Node<T>* z){
             }
             z->parent->isBlack = 1;
             z->parent->parent->isBlack = 0;
-            rightRotate(t, z->parent);
+            rightRotate(t, z->parent->parent);
         }
         else{
             Node<T>* y = z->parent->parent->left;
@@ -95,7 +95,7 @@ void RBInsertFixUp(RBTree<T>& t, Node<T>* z){
             }
             if(z == z->parent->left){
                 z = z->parent;
-                rightRotate(t, z);
+                rightRotate(t, z->parent);
             }
             z->parent->isBlack = 1;
             z->parent->parent->isBlack = 0;
@@ -128,6 +128,135 @@ void RBInsert(RBTree<T>& t, Node<T>* z){
     RBInsertFixUp(t, z);
 }
 
+template <typename T>
+Node<T>* treeMinimum(RBTree<T> t, Node<T>* v) {
+    while (v->left != t.NIL) {
+        v = v->left;
+    }
+    return v;
+}
+
+
+template <typename T>
+void RBTransplant(RBTree<T> t, Node<T>* u, Node<T>* v) {
+    if (u->parent == t.NIL)
+        t.root = v;
+    else if (u == u->parent->left)
+        u->parent->left = v;
+    else
+        u->parent->right = v;
+    v->parent = u->parent;
+}
+
+
+template <typename T>
+void RBDeleteFixUp(RBTree<T> t, Node<T>* x) {
+    while (x != t.root && x->isBlack) {
+        if (x == x->parent->left) {
+            Node<T>* w = x->parent->right;
+            if (!w->isBlack) {
+                w->isBlack = 1;
+                x->parent->isBlack = 0;
+                leftRotate(t, x->parent);
+            }
+            if (w->left->isBlack && w->right->isBlack) {
+                w->isBlack = 0;
+                x = x->parent;
+            }
+            else {
+                if (w->right->isBlack) {
+                    w->isBlack = 0;
+                    w->left->isBlack = 1;
+                    rightRotate(t, w);
+                    w = x->parent->right;
+                }
+                w->isBlack = x->parent->isBlack;
+                x->parent->isBlack = 1;
+                w->right->isBlack = 1;
+                leftRotate(t, x->parent);
+                x = t.root;
+            }
+        }
+        else {
+            Node<T>* w = x->parent->left;
+            if (!w->isBlack) {
+                w->isBlack = 1;
+                x->parent->isBlack = 0;
+                rightRotate(t, x->parent);
+            }
+            if (w->right->isBlack && w->left->isBlack) {
+                w->isBlack = 0;
+                x = x->parent;
+            }
+            else {
+                if (w->left->isBlack) {
+                    w->isBlack = 0;
+                    w->right->isBlack = 1;
+                    leftRotate(t, w);
+                    w = x->parent->left;
+                }
+                w->isBlack = x->parent->isBlack;
+                x->parent->isBlack = 1;
+                w->right->isBlack = 1;
+                rightRotate(t, x->parent);
+                x = t.root;
+            }
+        }
+    }
+    x->isBlack = 1;
+}
+
+template <typename T>
+void RBTreeDelete(RBTree<T> t, Node<T>* z) {
+    Node<T>* y = z;
+    Node<T>* x;
+    bool yIsBlackOriginal = y->isBlack;
+
+    if (z->left == t.NIL) {
+        x = z->right;
+        RBTransplant(t, z, z->right);
+    }
+    else if (z->right == t.NIL) {
+        x = z->left;
+        RBTransplant(t, z, z->left);
+    }
+    else {
+        y = treeMinimum(t, z->right);
+        yIsBlackOriginal = y->isBlack;
+        x = y->right;
+        if (y->parent == z)
+            x->parent = y;
+        else {
+            RBTransplant(t, y, y->right);
+            y->right = z->right;
+            y->right->parent = y;
+        }
+        RBTransplant(t, z, y);
+        y->left = z->left;
+        y->left->parent = y;
+        y->isBlack = z->isBlack;
+    }
+    if (yIsBlackOriginal)
+        RBDeleteFixUp(t, y);
+}
+
+template <typename T>
+Node<T>* RBFind(RBTree<T> t, Node<T>* v, T key) {
+    if (key == v->info)
+        return v;
+    if (v == t.NIL)
+        return t.NIL;
+    if (key < v->info)
+        return RBFind(t, v->left, key);
+    return RBFind(t, v->right, key);
+}
+
+template <typename T>
+void RBDelete(RBTree<T> t, T key) {
+    Node<T>* z = RBFind(t, t.root, key);
+    if (z == t.NIL) return;
+    RBTreeDelete(t, z);
+}
 
 template <typename T>
 void showSorted(Node<T>* t, Node<T>* NIL) {
@@ -149,6 +278,10 @@ int main(){
         Node<int>* node = new Node<int>{i};
         RBInsert(tree, node);
     }
+    RBDelete(tree, 4);
+    RBDelete(tree, 4);
+    RBDelete(tree, 9);
+    RBDelete(tree, 1);
     showSorted(tree.root, tree.NIL);
     return 0;
 }
